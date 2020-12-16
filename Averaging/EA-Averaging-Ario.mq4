@@ -21,6 +21,8 @@ TODO:
 - Calculate based on Price, Points, Digits, Leverage
 - EURUSD is the simplest, USDJPY is medium, EURCHF is the hardest, need to pull conversion rate from external API
 
+IN PROGRESS:
+
 DONE:
 * Alternate Orders Mode: Set buy & sell alternatively to halve the risk
 * Allow any currency for trading, at the moment EA only works on the applied chart
