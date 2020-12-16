@@ -3,7 +3,7 @@
 //|                                            Copyright 2020, Ario Gunawan |
 //|                                             https://www.ariogunawan.com |
 //+-------------------------------------------------------------------------+
-#define VERSION "1.5" // always update this one upon modification
+#define VERSION "1.6" // always update this one upon modification
 /*
 
 TODO:
@@ -24,6 +24,10 @@ TODO:
 IN PROGRESS:
 
 DONE:
+* Emergency Switch:
+- Place a Pending Order: BUY STOP with Price > 50% of the current Price
+- For example current Price = 1.23456, then place a BUY STOP at 2.0000
+- It will then CLOSE ALL orders
 * Alternate Orders Mode: Set buy & sell alternatively to halve the risk
 * Allow any currency for trading, at the moment EA only works on the applied chart
 * Minor modification of inputs labelling
@@ -153,9 +157,32 @@ void OnTick()
 
 // 8. Set for Autotrade
 
+// 9. Check for emergency switch
+   getEmergencySwitch();
+
 // 99. Show information
    getInformation();
 
+  }
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void getEmergencySwitch()
+  {
+   bool res;
+   for(int i = OrdersTotal()-1; i >= 0; i--)
+     {
+      res = OrderSelect(i, SELECT_BY_POS, MODE_TRADES);
+      if(res)
+        {
+         double price_diff_percent = 0;
+         price_diff_percent = MathAbs((OrderOpenPrice() - MarketInfo(OrderSymbol(), MODE_ASK))/MarketInfo(OrderSymbol(), MODE_ASK) * 100);
+         if(OrderType() == OP_BUYSTOP && price_diff_percent > 50)
+            setCloseAllOrders();
+        }
+
+     }
   }
 //+------------------------------------------------------------------+
 //|                                                                  |
