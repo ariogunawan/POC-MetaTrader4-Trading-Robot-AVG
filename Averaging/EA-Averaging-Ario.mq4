@@ -672,39 +672,40 @@ void setAutoTrade()
    double ask_bid_price = -1;
    int cmd = -1;
    int ticket_no = -1;
-   if(strategy2_isEntryValid() >= 0)
-     {
-      if(strategy2_isEntryValid() == OP_BUY && AveragingMode == Up)
+   if(AutoTradeMode == true)
+      if(strategy2_isEntryValid() >= 0)
         {
-         cmd = OP_BUY;
-         ask_bid_price = Ask;
-        }
-      else
-         if(strategy2_isEntryValid() == OP_BUY && AveragingMode == Down)
+         if(strategy2_isEntryValid() == OP_BUY && AveragingMode == Up)
            {
-            cmd = OP_SELL;
-            ask_bid_price = Bid;
+            cmd = OP_BUY;
+            ask_bid_price = Ask;
            }
          else
-            if(strategy2_isEntryValid() == OP_SELL && AveragingMode == Up)
+            if(strategy2_isEntryValid() == OP_BUY && AveragingMode == Down)
               {
                cmd = OP_SELL;
                ask_bid_price = Bid;
               }
             else
-               if(strategy2_isEntryValid() == OP_SELL && AveragingMode == Down)
+               if(strategy2_isEntryValid() == OP_SELL && AveragingMode == Up)
                  {
-                  cmd = OP_BUY;
-                  ask_bid_price = Ask;
-                 };
-      if(OrdersTotal() == 0 && AutoTradeMode == true)
-        {
-         ticket_no = OrderSend(Symbol(), cmd, AutoTradeVolume, ask_bid_price, MaxSlippage, 0, 0, "Auto Trade", setMagicNumber(Symbol(), cmd), 0, clrNONE);
-         if(ticket_no < 0)
-            Print("[DEBUG]: FAILED in placing AUTO TRADE", " | cmd = ", cmd, " | Error = ", GetLastError());
-         else
-            Print("[DEBUG]: SUCCESS in placing AUTO TRADE");
-        }
-     };
+                  cmd = OP_SELL;
+                  ask_bid_price = Bid;
+                 }
+               else
+                  if(strategy2_isEntryValid() == OP_SELL && AveragingMode == Down)
+                    {
+                     cmd = OP_BUY;
+                     ask_bid_price = Ask;
+                    };
+         if(AutoTradeMode == true && OrdersTotal() == 0)
+           {
+            ticket_no = OrderSend(Symbol(), cmd, AutoTradeVolume, ask_bid_price, MaxSlippage, 0, 0, "Auto Trade", setMagicNumber(Symbol(), cmd), 0, clrNONE);
+            if(ticket_no < 0)
+               Print("[DEBUG]: FAILED in placing AUTO TRADE", " | cmd = ", cmd, " | Error = ", GetLastError());
+            else
+               Print("[DEBUG]: SUCCESS in placing AUTO TRADE");
+           }
+        };
   }
 //+------------------------------------------------------------------+
