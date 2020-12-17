@@ -16,6 +16,7 @@ IN PROGRESS:
 - Crossing MA & Price under/over MA
 
 DONE:
+* ADDED AVERAGING UP feature!
 * Definition of 1 dollar:
 - Calculate based on Price, Points, Digits, Leverage
 - EURUSD is the simplest, USDJPY is medium, EURCHF is the hardest, need to pull conversion rate from external API
@@ -55,8 +56,14 @@ enum ENUM_SET_LAYERS
    Manual = 0,//Manual - Based on input: Maximum number of layers
    Automatic = 1//Automatic - Based on Account Balance
   };
+enum ENUM_AVERAGING_MODE
+  {
+   Down = 0,//Down - Price goes down, BUY
+   Up = 1//Up - Price goes down, SELL
+  };
 // -- input parameters
 sinput string separator1 = "*******************************";//======[ BASIC SETTINGS ]=======
+input ENUM_AVERAGING_MODE AveragingMode = Down;//Averaging Mode
 input bool AlternateOrdersMode = false;//Open new layers alternatively on buy and sell
 input int FirstStepInPips = 50;//First step in pips
 input int NextStepInPips = 20;//Next step in pips
@@ -251,7 +258,9 @@ void getTradesInformation(TradeInformation& starr_trade_information[])
    for(int i = 0; i < OrdersTotal(); i++)
      {
       res = OrderSelect(i, SELECT_BY_POS, MODE_TRADES);
-      negative = (OrderType() == 0 || OrderType() == 2 || OrderType() == 4) ? -1 : 1;
+      negative = (OrderType() == OP_BUY || OrderType() == OP_BUYLIMIT || OrderType() == OP_BUYSTOP) ? -1 : 1;
+      if(AveragingMode == Up)
+         negative = -negative;
       if(res)
         {
          starr_trade_information[i].order_no = i+1;
@@ -299,7 +308,7 @@ void setPendingOrders(TradeInformation& starr_trade_information[], int number_of
    int i = OrdersTotal();
    int cmd = -1;
    bool buy = (starr_trade_information[i-1].order_type == OP_BUY || starr_trade_information[i-1].order_type == OP_BUYLIMIT || starr_trade_information[i-1].order_type == OP_BUYSTOP) ? true : false;
-   if(AlternateOrdersMode)
+   if(AveragingMode == Down && AlternateOrdersMode == true)
      {
       if(starr_trade_information[i-1].order_type == OP_BUY || starr_trade_information[i-1].order_type == OP_SELLSTOP)
          cmd = OP_BUYLIMIT;
@@ -314,7 +323,27 @@ void setPendingOrders(TradeInformation& starr_trade_information[], int number_of
                   cmd = OP_BUYSTOP;
      }
    else
-      cmd = (buy == true) ? OP_BUYLIMIT:OP_SELLLIMIT;
+      if(AveragingMode == Up && AlternateOrdersMode == true)
+        {
+         if(starr_trade_information[i-1].order_type == OP_BUY || starr_trade_information[i-1].order_type == OP_SELLLIMIT)
+            cmd = OP_BUYSTOP;
+         else
+            if(starr_trade_information[i-1].order_type == OP_SELL || starr_trade_information[i-1].order_type == OP_BUYLIMIT)
+               cmd = OP_SELLSTOP;
+            else
+               if(starr_trade_information[i-1].order_type == OP_BUYSTOP)
+                  cmd = OP_SELLLIMIT;
+               else
+                  if(starr_trade_information[i-1].order_type == OP_SELLSTOP)
+                     cmd = OP_BUYLIMIT;
+        }
+      else
+         if(AveragingMode == Down && AlternateOrdersMode == false)
+            cmd = (buy == true) ? OP_BUYLIMIT:OP_SELLLIMIT;
+         else
+            if(AveragingMode == Up && AlternateOrdersMode == false)
+               cmd = (buy == true) ? OP_BUYSTOP:OP_SELLSTOP;
+
 //Build entry information
    entry_information.entry_symbol = starr_trade_information[i-1].order_symbol;
    entry_information.entry_order_type = cmd;
@@ -356,16 +385,48 @@ void getDebugInformation(string message, EntryInformation& entry_information, in
    string full_debug_message;
    full_debug_message = "[DEBUG]: "+ message+ " | Ticket No = "+ IntegerToString(entry_information.entry_ticket_no)+ " | "+
                         "Currency = "+ entry_information.entry_symbol+ " | "+
-                        "Lots = "+ DoubleToString(entry_information.entry_volume)+ " | "+
-                        "Price = "+ DoubleToString(entry_information.entry_price)+ " | "+
-                        "SL Pos = "+ DoubleToString(entry_information.entry_stop_loss)+ " | "+
-                        "TP Pos = "+ DoubleToString(entry_information.entry_take_profit)+ " | "+
-                        "SL Points = "+ DoubleToString(NormalizeDouble(MathAbs((entry_information.entry_price-entry_information.entry_stop_loss)/MarketInfo(entry_information.entry_symbol, MODE_POINT)), 0))+ " | "+
-                        "TP Points = "+ DoubleToString(NormalizeDouble(MathAbs((entry_information.entry_price-entry_information.entry_take_profit)/MarketInfo(entry_information.entry_symbol, MODE_POINT)), 0))+ " | "+
-                        "Spread Points = "+ DoubleToString(MarketInfo(entry_information.entry_symbol, MODE_SPREAD))+ " | "+
-                        "Stop Level Points = "+ DoubleToString(MarketInfo(entry_information.entry_symbol, MODE_STOPLEVEL))+ " | "+
+                        "Order Type = "+ getStringOrderType(entry_information.entry_order_type)+ " | "+
+                        "Lots = "+ DoubleToString(entry_information.entry_volume, 2)+ " | "+
+                        "Current Ask = "+ DoubleToString(MarketInfo(entry_information.entry_symbol, MODE_ASK), (int)MarketInfo(entry_information.entry_symbol, MODE_DIGITS))+ " | "+
+                        "Current Bid = "+ DoubleToString(MarketInfo(entry_information.entry_symbol, MODE_BID), (int)MarketInfo(entry_information.entry_symbol, MODE_DIGITS))+ " | "+
+                        "Price = "+ DoubleToString(entry_information.entry_price, (int)MarketInfo(entry_information.entry_symbol, MODE_DIGITS))+ " | "+
+                        "SL Pos = "+ DoubleToString(entry_information.entry_stop_loss, 2)+ " | "+
+                        "TP Pos = "+ DoubleToString(entry_information.entry_take_profit, 2)+ " | "+
+//                        "SL Points = "+ DoubleToString(NormalizeDouble(MathAbs((entry_information.entry_price-entry_information.entry_stop_loss), entry_information.entry_symbol, MODE_DIGITS)), 0))+ " | "+
+//                        "TP Points = "+ DoubleToString(NormalizeDouble(MathAbs((entry_information.entry_price-entry_information.entry_take_profit), entry_information.entry_symbol, MODE_DIGITS)), 0))+ " | "+
+                        "Spread Points = "+ DoubleToString(MarketInfo(entry_information.entry_symbol, MODE_SPREAD), 2)+ " | "+
+                        "Stop Level Points = "+ DoubleToString(MarketInfo(entry_information.entry_symbol, MODE_STOPLEVEL), 2)+ " | "+
                         "Error No = "+ IntegerToString(get_last_error);
    Print(full_debug_message);
+  }
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+string getStringOrderType(int order_type)
+  {
+   switch(order_type)
+     {
+      case 0:
+         return "OP_BUY";
+         break;
+      case 1:
+         return "OP_SELL";
+         break;
+      case 2:
+         return "OP_BUYLIMIT";
+         break;
+      case 3:
+         return "OP_SELLLIMIT";
+         break;
+      case 4:
+         return "OP_BUYSTOP";
+         break;
+      case 5:
+         return "OP_SELLSTOP";
+         break;
+      default:
+         return "ERROR";
+     }
   }
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -430,10 +491,18 @@ void getInformation()
      }
    long login=AccountInfoInteger(ACCOUNT_LOGIN);
 
-   Comment("\n\n", WindowExpertName(), " ", VERSION, ""+
-           "\n", "Account (", trade_mode, ") No: ", login, ""+
-           "\n", "-------------------------------------------", ""+
-           "");
+   if(ObjectFind("MyText") > 0)
+      ObjectDelete("MyText");
+
+   string averaging_mode = (AveragingMode == Down) ? "Down" : "Up";
+   string alternate_mode = (AlternateOrdersMode == true) ? "Yes" : "No";
+
+   ObjectCreate("MyText",OBJ_LABEL,0,0,0,0,0);
+   ObjectSet("MyText",OBJPROP_CORNER,3);
+   ObjectSet("MyText",OBJPROP_XDISTANCE,20);
+   ObjectSet("MyText",OBJPROP_YDISTANCE,20);
+   ObjectSetText("MyText","[Averaging Mode = "+ averaging_mode +" | Alternate Mode = "+ alternate_mode +"]",8,"Tahoma",Red);
+
   }
 //+------------------------------------------------------------------+
 void setCloseAllOrders()
@@ -499,3 +568,4 @@ double getOnePointPerLotValue(string pair="")
       pair = Symbol();
    return MarketInfo(pair, MODE_TICKVALUE)/MarketInfo(pair, MODE_TICKSIZE) * MarketInfo(pair, MODE_POINT);
   }
+//+------------------------------------------------------------------+
