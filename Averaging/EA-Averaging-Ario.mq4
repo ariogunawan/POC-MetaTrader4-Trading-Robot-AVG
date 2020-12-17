@@ -3,7 +3,7 @@
 //|                                            Copyright 2020, Ario Gunawan |
 //|                                             https://www.ariogunawan.com |
 //+-------------------------------------------------------------------------+
-#define VERSION "1.7" // always update this one upon modification
+#define VERSION "1.8" // always update this one upon modification
 /*
 
 TODO:
@@ -13,7 +13,7 @@ TODO:
 
 IN PROGRESS:
 * Simple Auto Trade for backtesting
-- Crossing MA & Price under/over MA
+- Crossing ATR & Price under/over MA
 
 DONE:
 * ADDED AVERAGING UP feature!
@@ -77,10 +77,9 @@ sinput string separator3 = "*******************************";//======[ TAKE PROF
 input ENUM_SET_CUT_LOSS_TAKE_PROFIT TakeProfitMode = None;//Take Profit Mode
 input double TakeProfitPercent = 20;//Take profit when balance grows by this percentage(%)
 input double TakeProfitAmount = 400;//Take profit when balance grows by this amount($)
-sinput string separator4 = "KALO JALAN GUA PINDAHIN KE ATAS";//======[ DIBAWAH INI BLOM JALAN SEMUA ]======
-input ENUM_SET_LAYERS LayersMode = Manual;//Layers (Pending Orders) Mode
-input double LayersBalancePercent = 20;//Open new layers up to this percentage of balance(%)
-input double LayersBalanceAmount = 400;//Open new layers up to this balance amount($)
+sinput string separator4 = "*******************************";//======[ AUTO TRADE SETTINGS ]======
+input bool AutoTradeMode = false;//Auto Trade Mode
+input double AutoTradeVolume = 0.01;//Auto Trade Lots (Volume)
 
 //--- struct initialization
 struct DistanceInformation
@@ -175,10 +174,11 @@ void OnTick()
 // 7. Check for Cutloss
    setCutLossMode();
 
-// 8. Set for Autotrade
-
-// 9. Check for emergency switch
+// 8. Check for emergency switch
    getEmergencySwitch();
+
+// 9. Set for Autotrade
+   setAutoTrade();
 
 // 99. Show information
    getInformation();
@@ -433,13 +433,16 @@ string getStringOrderType(int order_type)
 //+------------------------------------------------------------------+
 int getMaxNumberOfOrders()
   {
-   if(LayersMode == Manual)
-      return MaxNumberOfOrders;
-   else
-     {
-      /* PLACEHOLDER - Set logic to count max number of orders based on balance */
-      return MaxNumberOfOrders;
-     }
+   /*
+      if(LayersMode == Manual)
+         return MaxNumberOfOrders;
+      else
+        {
+         //PLACEHOLDER - Set logic to count max number of orders based on balance
+         return MaxNumberOfOrders;
+        }
+   */
+   return MaxNumberOfOrders;
   }
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -567,5 +570,141 @@ double getOnePointPerLotValue(string pair="")
    if(pair == "")
       pair = Symbol();
    return MarketInfo(pair, MODE_TICKVALUE)/MarketInfo(pair, MODE_TICKSIZE) * MarketInfo(pair, MODE_POINT);
+  }
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+double getCandleValue(string candle_type, int candle_no)
+  {
+   double candle_value = 0;
+   if(candle_type == "OPEN")
+      candle_value = (iOpen(NULL, 0, candle_no));
+   else
+      if(candle_type == "HIGH")
+         candle_value = (iHigh(NULL, 0, candle_no));
+      else
+         if(candle_type == "LOW")
+            candle_value = (iLow(NULL, 0, candle_no));
+         else
+            if(candle_type == "CLOSE")
+               candle_value = (iClose(NULL, 0, candle_no));
+   return candle_value;
+  }
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+bool bullishCandle(int candle_no)
+  {
+   bool decision;
+   double candle_value = getCandleValue("CLOSE", candle_no) - getCandleValue("OPEN", candle_no);
+   (candle_value > 0)? decision = true : decision = false;
+   return decision;
+  }
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+double getStochastic(int candle_no)
+  {
+   double stochastic_value = iStochastic(NULL,0,5,3,3,MODE_SMA,0,MODE_MAIN,candle_no);
+   return stochastic_value;
+  }
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+double getATR(int period, int candle_no)
+  {
+   double atr_value = iATR(NULL, 0, period, candle_no);
+   return atr_value;
+  }
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+double getMA(int tf, int period, int candle_no)
+  {
+   double ma_value = iMA(NULL, tf, period, 0, MODE_SMA, PRICE_CLOSE, candle_no);
+   return ma_value;
+  }
+//+------------------------------------------------------------------+
+//| STRATEGY 2                                                       |
+//+------------------------------------------------------------------+
+int strategy2_isATRValid()
+  {
+   int decision = -1;
+   double gap_ATR = 0.0001;
+// ATR 13 & 55
+// Enter when ATR 13 above ATR 55 and 2 previous candle ATR < current candle ATR
+   if((getATR(13, 0) - getATR(55, 0) >= gap_ATR) &&
+      (getATR(13, 1) > getATR(55, 1)) &&
+      (getATR(13, 2) > getATR(55, 2)) &&
+      ((getATR(13, 2) - getATR(55, 2) > 0)))
+      decision = 1;
+   return decision;
+  }
+//+------------------------------------------------------------------+
+int strategy2_isCandleValid()
+  {
+   int decision = -1;
+   if(bullishCandle(2) == false && bullishCandle(1) == false && bullishCandle(0) == true)
+      decision = OP_BUY;
+   else
+      if(bullishCandle(2) == true && bullishCandle(1) == true && bullishCandle(0) == false)
+         decision = OP_SELL;
+   return decision;
+  }
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+int strategy2_isEntryValid()
+  {
+   int decision = -1;
+   if(strategy2_isCandleValid() == 0 && strategy2_isATRValid() == 1 && getMA(Period()*2, 89, 0) < iClose(NULL, Period()*2, 0))
+      decision = OP_BUY; // 0 BUY
+   else
+      if(strategy2_isCandleValid() == 1 && strategy2_isATRValid() == 1 && getMA(Period()*2, 89, 0) > iClose(NULL, Period()*2, 0))
+         decision = OP_SELL; // 1 SELL
+   return decision;
+  }
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void setAutoTrade()
+  {
+   double ask_bid_price = -1;
+   int cmd = -1;
+   int ticket_no = -1;
+   if(strategy2_isEntryValid() >= 0)
+     {
+      if(strategy2_isEntryValid() == OP_BUY && AveragingMode == Up)
+        {
+         cmd = OP_BUY;
+         ask_bid_price = Ask;
+        }
+      else
+         if(strategy2_isEntryValid() == OP_BUY && AveragingMode == Down)
+           {
+            cmd = OP_SELL;
+            ask_bid_price = Bid;
+           }
+         else
+            if(strategy2_isEntryValid() == OP_SELL && AveragingMode == Up)
+              {
+               cmd = OP_SELL;
+               ask_bid_price = Bid;
+              }
+            else
+               if(strategy2_isEntryValid() == OP_SELL && AveragingMode == Down)
+                 {
+                  cmd = OP_BUY;
+                  ask_bid_price = Ask;
+                 };
+      if(OrdersTotal() == 0)
+        {
+         ticket_no = OrderSend(Symbol(), cmd, AutoTradeVolume, ask_bid_price, MaxSlippage, 0, 0, "Auto Trade", setMagicNumber(Symbol(), cmd), 0, clrNONE);
+         if(ticket_no < 0)
+            Print("[DEBUG]: FAILED in placing AUTO TRADE", " | cmd = ", cmd, " | Error = ", GetLastError());
+         else
+            Print("[DEBUG]: SUCCESS in placing AUTO TRADE");
+        }
+     };
   }
 //+------------------------------------------------------------------+
