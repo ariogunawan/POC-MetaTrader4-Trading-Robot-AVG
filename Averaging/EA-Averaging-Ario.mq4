@@ -6,13 +6,12 @@
 #define VERSION "1.8" // always update this one upon modification
 /*
 
-TODO:
+IMPOSSIBLE:
 * GAK BISA - SUSAH!! NYERAH!! Max Layers to be determined by:
 - Risk Percentage
 - Dollar Amount
 
-IN PROGRESS:
-
+FINISHED!!!
 
 DONE:
 * Simple Auto Trade for backtesting
