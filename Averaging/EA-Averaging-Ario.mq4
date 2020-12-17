@@ -3,27 +3,25 @@
 //|                                            Copyright 2020, Ario Gunawan |
 //|                                             https://www.ariogunawan.com |
 //+-------------------------------------------------------------------------+
-#define VERSION "1.6" // always update this one upon modification
+#define VERSION "1.7" // always update this one upon modification
 /*
 
 TODO:
 * Max Layers to be determined by:
 - Risk Percentage
 - Dollar Amount
-* Simple Auto Trade for backtesting
-- Crossing MA & Price under/over MA
-* Validations:
-- Stop Levels
-- Commission & Swap
-* Create function to pull all debugging information
-* Create dynamic magic number
-* Defintion of 1 dollar:
-- Calculate based on Price, Points, Digits, Leverage
-- EURUSD is the simplest, USDJPY is medium, EURCHF is the hardest, need to pull conversion rate from external API
 
 IN PROGRESS:
+* Simple Auto Trade for backtesting
+- Crossing MA & Price under/over MA
 
 DONE:
+* Definition of 1 dollar:
+- Calculate based on Price, Points, Digits, Leverage
+- EURUSD is the simplest, USDJPY is medium, EURCHF is the hardest, need to pull conversion rate from external API
+* Validating stopl level before deciding price to enter the order (to avoid ERROR 130)
+* Create function to pull all debugging information
+* Create dynamic magic number
 * Emergency Switch:
 - Place a Pending Order: BUY STOP with Price > 50% of the current Price
 - For example current Price = 1.23456, then place a BUY STOP at 2.0000
@@ -97,6 +95,21 @@ struct TradeInformation
    int               order_magic_no;
    string            order_comment;
    double            order_next_price;
+  };
+struct EntryInformation
+  {
+   int               entry_ticket_no;
+   string            entry_symbol;
+   int               entry_order_type;
+   double            entry_volume;
+   double            entry_price;
+   int               entry_slippage;
+   double            entry_stop_loss;
+   double            entry_take_profit;
+   string            entry_comment;
+   int               entry_magic_no;
+   datetime          entry_expiration;
+   color             entry_color;
   };
 
 //+------------------------------------------------------------------+
@@ -282,31 +295,78 @@ void setAveragingOrders(TradeInformation& starr_trade_information[], int number_
 //+------------------------------------------------------------------+
 void setPendingOrders(TradeInformation& starr_trade_information[], int number_of_orders)
   {
+   EntryInformation entry_information;
    int i = OrdersTotal();
    int cmd = -1;
-   string pair = starr_trade_information[i-1].order_symbol;
-   bool buy = (starr_trade_information[i-1].order_type == 0 || starr_trade_information[i-1].order_type == 2 || starr_trade_information[i-1].order_type == 4) ? true : false;
+   bool buy = (starr_trade_information[i-1].order_type == OP_BUY || starr_trade_information[i-1].order_type == OP_BUYLIMIT || starr_trade_information[i-1].order_type == OP_BUYSTOP) ? true : false;
    if(AlternateOrdersMode)
      {
-      if(starr_trade_information[i-1].order_type == 0 || starr_trade_information[i-1].order_type == 5)
-         cmd = 2;
+      if(starr_trade_information[i-1].order_type == OP_BUY || starr_trade_information[i-1].order_type == OP_SELLSTOP)
+         cmd = OP_BUYLIMIT;
       else
-         if(starr_trade_information[i-1].order_type == 1 || starr_trade_information[i-1].order_type == 4)
-            cmd = 3;
+         if(starr_trade_information[i-1].order_type == OP_SELL || starr_trade_information[i-1].order_type == OP_BUYSTOP)
+            cmd = OP_SELLLIMIT;
          else
-            if(starr_trade_information[i-1].order_type == 2)
-               cmd = 5;
+            if(starr_trade_information[i-1].order_type == OP_BUYLIMIT)
+               cmd = OP_SELLSTOP;
             else
-               if(starr_trade_information[i-1].order_type == 3)
-                  cmd = 4;
+               if(starr_trade_information[i-1].order_type == OP_SELLLIMIT)
+                  cmd = OP_BUYSTOP;
      }
    else
-      cmd = (buy == true) ? 2:3;
-   double next_price = starr_trade_information[i-1].order_next_price;
-   if(i > 0)
-      int res = OrderSend(pair, cmd, starr_trade_information[i-1].order_volume, starr_trade_information[i-1].order_next_price, MaxSlippage, 0, 0, "Next Order", 1, 0, clrNONE);
+      cmd = (buy == true) ? OP_BUYLIMIT:OP_SELLLIMIT;
+//Build entry information
+   entry_information.entry_symbol = starr_trade_information[i-1].order_symbol;
+   entry_information.entry_order_type = cmd;
+   entry_information.entry_volume = starr_trade_information[i-1].order_volume;
+//Stop Level Validations
+   double ask_bid_price = (buy == true) ? MarketInfo(entry_information.entry_symbol, MODE_ASK):MarketInfo(entry_information.entry_symbol, MODE_BID);
+   double stop_level = MarketInfo(entry_information.entry_symbol, MODE_STOPLEVEL);
+   entry_information.entry_price = starr_trade_information[i-1].order_next_price;
+   if(buy && MathAbs(entry_information.entry_price - ask_bid_price) < stop_level)
+      entry_information.entry_price -= stop_level;
+   else
+      if(!buy && MathAbs(entry_information.entry_price - ask_bid_price) < stop_level)
+         entry_information.entry_price += stop_level;
+      else
+         entry_information.entry_price = starr_trade_information[i-1].order_next_price;
+//-
+   entry_information.entry_slippage = MaxSlippage;
+   entry_information.entry_stop_loss = 0;
+   entry_information.entry_take_profit = 0;
+   entry_information.entry_comment = "Next Order";
+   entry_information.entry_magic_no = setMagicNumber(entry_information.entry_symbol, entry_information.entry_order_type);
+   entry_information.entry_expiration = 0;
+   entry_information.entry_color = (entry_information.entry_order_type % 2 == 1) ? clrRed:clrGreen;
+//-
+   if(OrdersTotal() > 0)
+     {
+      entry_information.entry_ticket_no = OrderSend(entry_information.entry_symbol, entry_information.entry_order_type, entry_information.entry_volume, entry_information.entry_price, entry_information.entry_slippage, entry_information.entry_stop_loss, entry_information.entry_take_profit, entry_information.entry_comment, entry_information.entry_magic_no, entry_information.entry_expiration, entry_information.entry_color);
+      if(entry_information.entry_ticket_no < 0)
+         getDebugInformation("FAILED", entry_information, GetLastError());
+      else
+         getDebugInformation("SUCCESS", entry_information, GetLastError());
+     }
   }
-
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void getDebugInformation(string message, EntryInformation& entry_information, int get_last_error)
+  {
+   string full_debug_message;
+   full_debug_message = "[DEBUG]: "+ message+ " | Ticket No = "+ IntegerToString(entry_information.entry_ticket_no)+ " | "+
+                        "Currency = "+ entry_information.entry_symbol+ " | "+
+                        "Lots = "+ DoubleToString(entry_information.entry_volume)+ " | "+
+                        "Price = "+ DoubleToString(entry_information.entry_price)+ " | "+
+                        "SL Pos = "+ DoubleToString(entry_information.entry_stop_loss)+ " | "+
+                        "TP Pos = "+ DoubleToString(entry_information.entry_take_profit)+ " | "+
+                        "SL Points = "+ DoubleToString(NormalizeDouble(MathAbs((entry_information.entry_price-entry_information.entry_stop_loss)/MarketInfo(entry_information.entry_symbol, MODE_POINT)), 0))+ " | "+
+                        "TP Points = "+ DoubleToString(NormalizeDouble(MathAbs((entry_information.entry_price-entry_information.entry_take_profit)/MarketInfo(entry_information.entry_symbol, MODE_POINT)), 0))+ " | "+
+                        "Spread Points = "+ DoubleToString(MarketInfo(entry_information.entry_symbol, MODE_SPREAD))+ " | "+
+                        "Stop Level Points = "+ DoubleToString(MarketInfo(entry_information.entry_symbol, MODE_STOPLEVEL))+ " | "+
+                        "Error No = "+ IntegerToString(get_last_error);
+   Print(full_debug_message);
+  }
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
@@ -379,37 +439,63 @@ void getInformation()
 void setCloseAllOrders()
   {
    int is_order_closed = 0;
-   for(int x = OrdersTotal()-1; x>=0; x--)
+   for(int i = OrdersTotal()-1; i>=0; i--)
      {
       is_order_closed = 0;
       RefreshRates();
-      if(OrderSelect(x, SELECT_BY_POS, MODE_TRADES))
+      if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
          if(OrderType() == OP_BUY)
            {
             is_order_closed = OrderClose(OrderTicket(), OrderLots(), MarketInfo(OrderSymbol(), MODE_BID), MaxSlippage, clrNONE);
             if(is_order_closed < 0)
-               Print("DEBUG - Error in closing BUY order, error no: ", GetLastError(), " | Ticket: ", OrderTicket());
+               Print("[DEBUG] - Error in closing BUY order, error no: ", GetLastError(), " | Ticket: ", OrderTicket());
             else
-               Print("DEBUG - Closing BUY order, ticket no: ", OrderTicket());
+               Print("[DEBUG] - Closing BUY order, ticket no: ", OrderTicket());
            }
          else
             if(OrderType() == OP_SELL)
               {
                is_order_closed = OrderClose(OrderTicket(), OrderLots(), MarketInfo(OrderSymbol(), MODE_ASK), MaxSlippage, clrNONE);
                if(is_order_closed < 0)
-                  Print("DEBUG - Error in closing SELL order, error no: ", GetLastError(), " | Ticket: ", OrderTicket());
+                  Print("[DEBUG] - Error in closing SELL order, error no: ", GetLastError(), " | Ticket: ", OrderTicket());
                else
-                  Print("DEBUG - Closing SELL order, ticket no: ", OrderTicket());
+                  Print("[DEBUG] - Closing SELL order, ticket no: ", OrderTicket());
               }
             else
                if(OrderType()== OP_BUYLIMIT || OrderType()== OP_BUYSTOP || OrderType()== OP_SELLLIMIT || OrderType()== OP_SELLSTOP)
                  {
                   is_order_closed = OrderDelete(OrderTicket(), clrNONE);
                   if(is_order_closed < 0)
-                     Print("DEBUG - Error in deleting pending order, error no: ", GetLastError(), " | Ticket: ", OrderTicket());
+                     Print("[DEBUG] - Error in deleting pending order, error no: ", GetLastError(), " | Ticket: ", OrderTicket());
                   else
-                     Print("DEBUG - Deleting pending order, ticket no: ", OrderTicket());
+                     Print("[DEBUG] - Deleting pending order, ticket no: ", OrderTicket());
                  }
      }
   }
 //+------------------------------------------------------------------+
+int setMagicNumber(string pair, int op_type)
+  {
+   int weight = 0;
+   string whole_weight;
+   for(int i = 0; i<StringLen(pair); i++)
+      weight = weight + StringGetChar(pair, i);
+   whole_weight = IntegerToString(weight) + IntegerToString(op_type);
+   return (int) whole_weight;
+  }
+//+------------------------------------------------------------------+
+double getOnePipPerLotValue(string pair="")
+  {
+   if(pair == "")
+      pair = Symbol();
+   int multiply_ten = ((int)MarketInfo(pair, MODE_DIGITS) % 2 == 1) ? 10:1;
+   return getOnePointPerLotValue(pair) * multiply_ten;
+  }
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+double getOnePointPerLotValue(string pair="")
+  {
+   if(pair == "")
+      pair = Symbol();
+   return MarketInfo(pair, MODE_TICKVALUE)/MarketInfo(pair, MODE_TICKSIZE) * MarketInfo(pair, MODE_POINT);
+  }
