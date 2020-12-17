@@ -3,7 +3,7 @@
 //|                                            Copyright 2020, Ario Gunawan |
 //|                                             https://www.ariogunawan.com |
 //+-------------------------------------------------------------------------+
-#define VERSION "1.8" // always update this one upon modification
+#define VERSION "1.9" // always update this one upon modification
 /*
 
 IMPOSSIBLE:
@@ -697,7 +697,7 @@ void setAutoTrade()
                   cmd = OP_BUY;
                   ask_bid_price = Ask;
                  };
-      if(OrdersTotal() == 0)
+      if(OrdersTotal() == 0 && AutoTradeMode == true)
         {
          ticket_no = OrderSend(Symbol(), cmd, AutoTradeVolume, ask_bid_price, MaxSlippage, 0, 0, "Auto Trade", setMagicNumber(Symbol(), cmd), 0, clrNONE);
          if(ticket_no < 0)
