@@ -3,7 +3,7 @@
 //|                                            Copyright 2020, Ario Gunawan |
 //|                                             https://www.ariogunawan.com |
 //+-------------------------------------------------------------------------+
-#define VERSION "1.9" // always update this one upon modification
+#define VERSION "1.10" // always update this one upon modification
 /*
 
 IMPOSSIBLE:
@@ -14,6 +14,7 @@ IMPOSSIBLE:
 FINISHED!!!
 
 DONE:
+* Fixed added POINTS conversion for STOPLEVEL
 * Simple Auto Trade for backtesting
 - Crossing ATR & Price under/over MA
 * ADDED AVERAGING UP feature!
@@ -350,7 +351,7 @@ void setPendingOrders(TradeInformation& starr_trade_information[], int number_of
    entry_information.entry_volume = starr_trade_information[i-1].order_volume;
 //Stop Level Validations
    double ask_bid_price = (buy == true) ? MarketInfo(entry_information.entry_symbol, MODE_ASK):MarketInfo(entry_information.entry_symbol, MODE_BID);
-   double stop_level = MarketInfo(entry_information.entry_symbol, MODE_STOPLEVEL);
+   double stop_level = MarketInfo(entry_information.entry_symbol, MODE_STOPLEVEL) * MarketInfo(entry_information.entry_symbol, MODE_POINT);
    entry_information.entry_price = starr_trade_information[i-1].order_next_price;
    if(buy && MathAbs(entry_information.entry_price - ask_bid_price) < stop_level)
       entry_information.entry_price -= stop_level;
