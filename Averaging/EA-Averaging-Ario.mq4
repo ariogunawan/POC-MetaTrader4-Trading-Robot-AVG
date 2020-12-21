@@ -3,7 +3,7 @@
 //|                                            Copyright 2020, Ario Gunawan |
 //|                                             https://www.ariogunawan.com |
 //+-------------------------------------------------------------------------+
-#define VERSION "1.10" // always update this one upon modification
+#define VERSION "1.11" // always update this one upon modification
 /*
 
 IMPOSSIBLE:
@@ -14,6 +14,7 @@ IMPOSSIBLE:
 FINISHED!!!
 
 DONE:
+* Add 1 sec delay before make a pending order, and also refreshing the rate before proceeding
 * Fixed added POINTS conversion for STOPLEVEL
 * Simple Auto Trade for backtesting
 - Crossing ATR & Price under/over MA
@@ -371,6 +372,8 @@ void setPendingOrders(TradeInformation& starr_trade_information[], int number_of
 //-
    if(OrdersTotal() > 0)
      {
+      Sleep(1000);
+      RefreshRates();
       entry_information.entry_ticket_no = OrderSend(entry_information.entry_symbol, entry_information.entry_order_type, entry_information.entry_volume, entry_information.entry_price, entry_information.entry_slippage, entry_information.entry_stop_loss, entry_information.entry_take_profit, entry_information.entry_comment, entry_information.entry_magic_no, entry_information.entry_expiration, entry_information.entry_color);
       if(entry_information.entry_ticket_no < 0)
          getDebugInformation("FAILED", entry_information, GetLastError());
