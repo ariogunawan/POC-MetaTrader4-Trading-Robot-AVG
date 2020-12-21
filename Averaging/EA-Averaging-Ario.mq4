@@ -3,7 +3,7 @@
 //|                                            Copyright 2020, Ario Gunawan |
 //|                                             https://www.ariogunawan.com |
 //+-------------------------------------------------------------------------+
-#define VERSION "1.11" // always update this one upon modification
+#define VERSION "1.12" // always update this one upon modification
 /*
 
 IMPOSSIBLE:
@@ -14,6 +14,7 @@ IMPOSSIBLE:
 FINISHED!!!
 
 DONE:
+* Delete pending orders when there's no active order
 * Add 1 sec delay before make a pending order, and also refreshing the rate before proceeding
 * Fixed added POINTS conversion for STOPLEVEL
 * Simple Auto Trade for backtesting
@@ -79,6 +80,7 @@ sinput string separator3 = "*******************************";//======[ TAKE PROF
 input ENUM_SET_CUT_LOSS_TAKE_PROFIT TakeProfitMode = None;//Take Profit Mode
 input double TakeProfitPercent = 20;//Take profit when balance grows by this percentage(%)
 input double TakeProfitAmount = 400;//Take profit when balance grows by this amount($)
+//input group "Auto Trade"
 sinput string separator4 = "*******************************";//======[ AUTO TRADE SETTINGS ]======
 input bool AutoTradeMode = false;//Auto Trade Mode
 input double AutoTradeVolume = 0.01;//Auto Trade Lots (Volume)
@@ -179,14 +181,36 @@ void OnTick()
 // 8. Check for emergency switch
    getEmergencySwitch();
 
-// 9. Set for Autotrade
+// 9. Clean up when there's no active order
+   delPendingOrders();
+
+// 10. Set for Autotrade
    setAutoTrade();
 
 // 99. Show information
    getInformation();
-
   }
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void delPendingOrders()
+  {
+   bool res;
+   int total_active_orders = 0;
+   if(OrdersTotal() >0)
+     {
+      for(int i = OrdersTotal()-1; i >= 0; i--)
+        {
+         res = OrderSelect(i, SELECT_BY_POS, MODE_TRADES);
+         if(res)
+            if(OrderType()== OP_BUY || OrderType()== OP_SELL)
+               total_active_orders = total_active_orders + 1;
 
+        }
+      if(total_active_orders == 0)
+         setCloseAllOrders();
+     }
+  }
 //+------------------------------------------------------------------+
 //|                                                                  |
 //+------------------------------------------------------------------+
@@ -518,6 +542,7 @@ void setCloseAllOrders()
    for(int i = OrdersTotal()-1; i>=0; i--)
      {
       is_order_closed = 0;
+      Sleep(1000);
       RefreshRates();
       if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
          if(OrderType() == OP_BUY)
