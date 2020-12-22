@@ -3,7 +3,7 @@
 //|                                            Copyright 2020, Ario Gunawan |
 //|                                             https://www.ariogunawan.com |
 //+-------------------------------------------------------------------------+
-#define VERSION "1.12" // always update this one upon modification
+#define VERSION "1.13" // always update this one upon modification
 /*
 
 IMPOSSIBLE:
@@ -14,6 +14,7 @@ IMPOSSIBLE:
 FINISHED!!!
 
 DONE:
+* Fixed bug to ignore Auto Trade as the first order, updated OrderComments and Magic Number for Auto
 * Delete pending orders when there's no active order
 * Add 1 sec delay before make a pending order, and also refreshing the rate before proceeding
 * Fixed added POINTS conversion for STOPLEVEL
@@ -300,7 +301,7 @@ void getTradesInformation(TradeInformation& starr_trade_information[])
          starr_trade_information[i].order_magic_no = OrderMagicNumber();
          starr_trade_information[i].order_comment = OrderComment();
          // if first order
-         if(OrderComment() == "" && OrderMagicNumber() == 0 && OrderOpenPrice() > 0)
+         if((OrderComment() == "" || OrderComment() == "Auto Trade") && OrderMagicNumber() == 0 && OrderOpenPrice() > 0)
             starr_trade_information[i].order_next_price = starr_trade_information[i].order_price + negative * NormalizeDouble(FirstStepInPips * Point, Digits);
          else
            {
@@ -729,7 +730,7 @@ void setAutoTrade()
                     };
          if(AutoTradeMode == true && OrdersTotal() == 0)
            {
-            ticket_no = OrderSend(Symbol(), cmd, AutoTradeVolume, ask_bid_price, MaxSlippage, 0, 0, "Auto Trade", setMagicNumber(Symbol(), cmd), 0, clrNONE);
+            ticket_no = OrderSend(Symbol(), cmd, AutoTradeVolume, ask_bid_price, MaxSlippage, 0, 0, "Auto Trade", 0, 0, clrNONE);
             if(ticket_no < 0)
                Print("[DEBUG]: FAILED in placing AUTO TRADE", " | cmd = ", cmd, " | Error = ", GetLastError());
             else
