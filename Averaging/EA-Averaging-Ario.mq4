@@ -14,6 +14,7 @@ IMPOSSIBLE:
 FINISHED!!!
 
 DONE:
+* Fixed EA information on top right corner
 * Update step in pips to be informatively correct as POINTS
 * Fixed bug to ignore Auto Trade as the first order, updated OrderComments and Magic Number for Auto
 * Delete pending orders when there's no active order
@@ -76,8 +77,8 @@ input int MaxSlippage = 5;//Maximum slippage tolerant in points
 input int MaxNumberOfOrders = 11;//Maximum number of layers (pending orders)
 sinput string separator2 = "*******************************";//======[ CUT LOSS SETTINGS ]======
 input ENUM_SET_CUT_LOSS_TAKE_PROFIT CutLossMode = None;//Cut Loss Mode
-input double CutLossPercent = 20;//Cut loss when total loss >= this percent of balance(%)
-input double CutLossAmount = 400;//Cut loss when total loss >= this amount($)
+input double CutLossPercent = 20;//Cut loss when total loss >= this NEGATIVE percent of balance(-%)
+input double CutLossAmount = 400;//Cut loss when total loss >= this NEGATIVE amount(-$)
 sinput string separator3 = "*******************************";//======[ TAKE PROFIT SETTINGS ]======
 input ENUM_SET_CUT_LOSS_TAKE_PROFIT TakeProfitMode = None;//Take Profit Mode
 input double TakeProfitPercent = 5;//Take profit when total profit >= this percent of balance(%)
@@ -242,7 +243,7 @@ void setTakeProfitMode()
    if(TakeProfitMode > 0)
      {
       if(TakeProfitMode == Percentage)
-         is_profitable = (AccountProfit()/AccountBalance()*100 > TakeProfitPercent) ? true : false;
+         is_profitable = (AccountProfit() > 0 && AccountProfit()/AccountBalance()*100 > TakeProfitPercent) ? true : false;
       else
          if(TakeProfitMode == Amount)
             is_profitable = (AccountProfit() > 0 && MathAbs(AccountProfit()) > TakeProfitAmount) ? true : false;
@@ -264,10 +265,10 @@ void setCutLossMode()
    if(CutLossMode > 0)
      {
       if(CutLossMode == Percentage)
-         is_margin_breached = (AccountProfit()/AccountBalance()*100 < -CutLossPercent) ? true : false;
+         is_margin_breached = (AccountProfit() < 0 && MathAbs(AccountProfit())/AccountBalance()*100 > MathAbs(CutLossPercent)) ? true : false;
       else
          if(CutLossMode == Amount)
-            is_margin_breached = (AccountProfit() < 0 && MathAbs(AccountProfit()) > CutLossAmount) ? true : false;
+            is_margin_breached = (AccountProfit() < 0 && MathAbs(AccountProfit()) > MathAbs(CutLossAmount)) ? true : false;
      }
    if(is_margin_breached == true)
      {
@@ -522,19 +523,44 @@ void getInformation()
          trade_mode="real";
          break;
      }
-   long login=AccountInfoInteger(ACCOUNT_LOGIN);
+   string login = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
 
-   if(ObjectFind("MyText") > 0)
-      ObjectDelete("MyText");
+   if(ObjectFind("TextAccountMode") > 0)
+      ObjectDelete("TextAccountMode");
+   if(ObjectFind("TextTradeMode") > 0)
+      ObjectDelete("TextTradeMode");
+   if(ObjectFind("TextTPSL") > 0)
+      ObjectDelete("TextTPSL");
 
    string averaging_mode = (AveragingMode == Down) ? "Down" : "Up";
    string alternate_mode = (AlternateOrdersMode == true) ? "Yes" : "No";
 
-   ObjectCreate("MyText",OBJ_LABEL,0,0,0,0,0);
-   ObjectSet("MyText",OBJPROP_CORNER,3);
-   ObjectSet("MyText",OBJPROP_XDISTANCE,20);
-   ObjectSet("MyText",OBJPROP_YDISTANCE,20);
-   ObjectSetText("MyText","[Averaging Mode = "+ averaging_mode +" | Alternate Mode = "+ alternate_mode +"]",8,"Tahoma",Red);
+   double take_profit_percent = TakeProfitPercent/100 * AccountBalance();
+   double cut_loss_percent = MathAbs(CutLossPercent)/100 * AccountBalance();
+
+   double take_profit_amount = (TakeProfitMode == Amount) ? TakeProfitAmount : take_profit_percent;
+   double cut_loss_amount = (CutLossMode == Amount) ? MathAbs(CutLossAmount) : cut_loss_percent;
+
+   take_profit_amount = (TakeProfitMode == None) ? 0.00 : take_profit_amount;
+   cut_loss_amount = (CutLossMode == None) ? 0.00 : MathAbs(cut_loss_amount);
+
+   ObjectCreate("TextTPSL",OBJ_LABEL,0,0,0,0,0);
+   ObjectSet("TextTPSL",OBJPROP_CORNER,1);
+   ObjectSet("TextTPSL",OBJPROP_XDISTANCE,5);
+   ObjectSet("TextTPSL",OBJPROP_YDISTANCE,20);
+   ObjectSetText("TextTPSL","[Take Profit = "+ DoubleToString(take_profit_amount, 2) +" | Cut Loss = "+ DoubleToString(-cut_loss_amount, 2) +"]",8,"Tahoma",Green);
+
+   ObjectCreate("TextTradeMode",OBJ_LABEL,0,0,0,0,0);
+   ObjectSet("TextTradeMode",OBJPROP_CORNER,1);
+   ObjectSet("TextTradeMode",OBJPROP_XDISTANCE,5);
+   ObjectSet("TextTradeMode",OBJPROP_YDISTANCE,40);
+   ObjectSetText("TextTradeMode","[Averaging Mode = "+ averaging_mode +" | Alternate Mode = "+ alternate_mode +"]",8,"Tahoma",White);
+
+   ObjectCreate("TextAccountMode",OBJ_LABEL,0,0,0,0,0);
+   ObjectSet("TextAccountMode",OBJPROP_CORNER,1);
+   ObjectSet("TextAccountMode",OBJPROP_XDISTANCE,5);
+   ObjectSet("TextAccountMode",OBJPROP_YDISTANCE,60);
+   ObjectSetText("TextAccountMode","[Version = " +VERSION+ " | Account (" +trade_mode+ ") No = " +login+ "]",8,"Tahoma",White);
 
   }
 //+------------------------------------------------------------------+
