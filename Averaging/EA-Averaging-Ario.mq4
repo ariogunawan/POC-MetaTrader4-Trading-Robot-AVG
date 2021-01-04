@@ -3,7 +3,7 @@
 //|                                            Copyright 2020, Ario Gunawan |
 //|                                             https://www.ariogunawan.com |
 //+-------------------------------------------------------------------------+
-#define VERSION "1.13" // always update this one upon modification
+#define VERSION "1.14" // always update this one upon modification
 /*
 
 IMPOSSIBLE:
@@ -14,6 +14,7 @@ IMPOSSIBLE:
 FINISHED!!!
 
 DONE:
+* Update step in pips to be informatively correct as POINTS
 * Fixed bug to ignore Auto Trade as the first order, updated OrderComments and Magic Number for Auto
 * Delete pending orders when there's no active order
 * Add 1 sec delay before make a pending order, and also refreshing the rate before proceeding
@@ -69,9 +70,9 @@ enum ENUM_AVERAGING_MODE
 sinput string separator1 = "*******************************";//======[ BASIC SETTINGS ]=======
 input ENUM_AVERAGING_MODE AveragingMode = Down;//Averaging Mode
 input bool AlternateOrdersMode = false;//Open new layers alternatively on buy and sell
-input int FirstStepInPips = 50;//First step in pips
-input int NextStepInPips = 20;//Next step in pips
-input int MaxSlippage = 5;//Maximum slippage tolerant in pips
+input int FirstStepInPips = 500;//First step in points
+input int NextStepInPips = 700;//Next step in points
+input int MaxSlippage = 5;//Maximum slippage tolerant in points
 input int MaxNumberOfOrders = 11;//Maximum number of layers (pending orders)
 sinput string separator2 = "*******************************";//======[ CUT LOSS SETTINGS ]======
 input ENUM_SET_CUT_LOSS_TAKE_PROFIT CutLossMode = None;//Cut Loss Mode
@@ -79,8 +80,8 @@ input double CutLossPercent = 20;//Cut loss when balance shrinks to this percent
 input double CutLossAmount = 400;//Cut loss when balance shrinks to this amount($)
 sinput string separator3 = "*******************************";//======[ TAKE PROFIT SETTINGS ]======
 input ENUM_SET_CUT_LOSS_TAKE_PROFIT TakeProfitMode = None;//Take Profit Mode
-input double TakeProfitPercent = 20;//Take profit when balance grows by this percentage(%)
-input double TakeProfitAmount = 400;//Take profit when balance grows by this amount($)
+input double TakeProfitPercent = 5;//Take profit when balance grows by this percentage(%)
+input double TakeProfitAmount = 20;//Take profit when balance grows by this amount($)
 //input group "Auto Trade"
 sinput string separator4 = "*******************************";//======[ AUTO TRADE SETTINGS ]======
 input bool AutoTradeMode = false;//Auto Trade Mode
