@@ -3,7 +3,7 @@
 //|                                            Copyright 2020, Ario Gunawan |
 //|                                             https://www.ariogunawan.com |
 //+-------------------------------------------------------------------------+
-#define VERSION "1.14" // always update this one upon modification
+#define VERSION "1.15" // always update this one upon modification
 /*
 
 IMPOSSIBLE:
@@ -53,8 +53,8 @@ DONE:
 enum ENUM_SET_CUT_LOSS_TAKE_PROFIT
   {
    None = 0,//Disable
-   Percentage = 1,//Remaining Balance (Percentage)
-   Amount = 2//Remaining Balance (Dollar Amount)
+   Percentage = 1,//By Percentage (%)
+   Amount = 2//By Dollar Amount ($)
   };
 enum ENUM_SET_LAYERS
   {
@@ -76,12 +76,12 @@ input int MaxSlippage = 5;//Maximum slippage tolerant in points
 input int MaxNumberOfOrders = 11;//Maximum number of layers (pending orders)
 sinput string separator2 = "*******************************";//======[ CUT LOSS SETTINGS ]======
 input ENUM_SET_CUT_LOSS_TAKE_PROFIT CutLossMode = None;//Cut Loss Mode
-input double CutLossPercent = 20;//Cut loss when balance shrinks to this percentage(%)
-input double CutLossAmount = 400;//Cut loss when balance shrinks to this amount($)
+input double CutLossPercent = 20;//Cut loss when total loss >= this percent of balance(%)
+input double CutLossAmount = 400;//Cut loss when total loss >= this amount($)
 sinput string separator3 = "*******************************";//======[ TAKE PROFIT SETTINGS ]======
 input ENUM_SET_CUT_LOSS_TAKE_PROFIT TakeProfitMode = None;//Take Profit Mode
-input double TakeProfitPercent = 5;//Take profit when balance grows by this percentage(%)
-input double TakeProfitAmount = 20;//Take profit when balance grows by this amount($)
+input double TakeProfitPercent = 5;//Take profit when total profit >= this percent of balance(%)
+input double TakeProfitAmount = 20;//Take profit when total profit >= this amount($)
 //input group "Auto Trade"
 sinput string separator4 = "*******************************";//======[ AUTO TRADE SETTINGS ]======
 input bool AutoTradeMode = false;//Auto Trade Mode
