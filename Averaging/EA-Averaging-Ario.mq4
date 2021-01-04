@@ -509,6 +509,15 @@ void setDistanceInformation(DistanceInformation& starr_distance_information[], i
 //+------------------------------------------------------------------+
 void getInformation()
   {
+   if(ObjectFind("TextAccountMode") > 0)
+      ObjectDelete("TextAccountMode");
+   if(ObjectFind("TextTradeMode") > 0)
+      ObjectDelete("TextTradeMode");
+   if(ObjectFind("TextTPSL") > 0)
+      ObjectDelete("TextTPSL");
+   if(ObjectFind("TextCopyright") > 0)
+      ObjectDelete("TextCopyright");
+
    ENUM_ACCOUNT_TRADE_MODE account_type=(ENUM_ACCOUNT_TRADE_MODE)AccountInfoInteger(ACCOUNT_TRADE_MODE);
    string trade_mode;
    switch(account_type)
@@ -525,13 +534,6 @@ void getInformation()
      }
    string login = IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
 
-   if(ObjectFind("TextAccountMode") > 0)
-      ObjectDelete("TextAccountMode");
-   if(ObjectFind("TextTradeMode") > 0)
-      ObjectDelete("TextTradeMode");
-   if(ObjectFind("TextTPSL") > 0)
-      ObjectDelete("TextTPSL");
-
    string averaging_mode = (AveragingMode == Down) ? "Down" : "Up";
    string alternate_mode = (AlternateOrdersMode == true) ? "Yes" : "No";
 
@@ -543,6 +545,8 @@ void getInformation()
 
    take_profit_amount = (TakeProfitMode == None) ? 0.00 : take_profit_amount;
    cut_loss_amount = (CutLossMode == None) ? 0.00 : MathAbs(cut_loss_amount);
+
+   string copyright_text = "Author: Ario Gunawan";
 
    ObjectCreate("TextTPSL",OBJ_LABEL,0,0,0,0,0);
    ObjectSet("TextTPSL",OBJPROP_CORNER,1);
@@ -561,6 +565,12 @@ void getInformation()
    ObjectSet("TextAccountMode",OBJPROP_XDISTANCE,5);
    ObjectSet("TextAccountMode",OBJPROP_YDISTANCE,60);
    ObjectSetText("TextAccountMode","[Version = " +VERSION+ " | Account (" +trade_mode+ ") No = " +login+ "]",8,"Tahoma",White);
+
+   ObjectCreate("TextCopyright",OBJ_LABEL,0,0,0,0,0);
+   ObjectSet("TextCopyright",OBJPROP_CORNER,3);
+   ObjectSet("TextCopyright",OBJPROP_XDISTANCE,5);
+   ObjectSet("TextCopyright",OBJPROP_YDISTANCE,20);
+   ObjectSetText("TextCopyright",copyright_text,8,"Tahoma",Green);
 
   }
 //+------------------------------------------------------------------+
