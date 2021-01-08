@@ -3,17 +3,11 @@
 //|                                            Copyright 2020, Ario Gunawan |
 //|                                             https://www.ariogunawan.com |
 //+-------------------------------------------------------------------------+
-#define VERSION "1.15" // always update this one upon modification
+#define VERSION "1.16" // always update this one upon modification
 /*
 
-IMPOSSIBLE:
-* GAK BISA - SUSAH!! NYERAH!! Max Layers to be determined by:
-- Risk Percentage
-- Dollar Amount
-
-FINISHED!!!
-
 DONE:
+* Added multiplier
 * Fixed EA information on top right corner
 * Update step in pips to be informatively correct as POINTS
 * Fixed bug to ignore Auto Trade as the first order, updated OrderComments and Magic Number for Auto
@@ -75,6 +69,7 @@ input int FirstStepInPips = 500;//First step in points
 input int NextStepInPips = 700;//Next step in points
 input int MaxSlippage = 5;//Maximum slippage tolerant in points
 input int MaxNumberOfOrders = 11;//Maximum number of layers (pending orders)
+input double Multiplier = 1;//Multiplier for incremental lots
 sinput string separator2 = "*******************************";//======[ CUT LOSS SETTINGS ]======
 input ENUM_SET_CUT_LOSS_TAKE_PROFIT CutLossMode = None;//Cut Loss Mode
 input double CutLossPercent = 20;//Cut loss when total loss >= this NEGATIVE percent of balance(-%)
@@ -252,7 +247,7 @@ void setTakeProfitMode()
      {
       Print("Profit/Loss = ", AccountProfit());
       setCloseAllOrders();
-      Sleep(10000);
+      Sleep(1000);
      }
   }
 //+------------------------------------------------------------------+
@@ -374,9 +369,10 @@ void setPendingOrders(TradeInformation& starr_trade_information[], int number_of
                cmd = (buy == true) ? OP_BUYSTOP:OP_SELLSTOP;
 
 //Build entry information
+   double multiplier = (Multiplier < 1) ? 1 : Multiplier;
    entry_information.entry_symbol = starr_trade_information[i-1].order_symbol;
    entry_information.entry_order_type = cmd;
-   entry_information.entry_volume = starr_trade_information[i-1].order_volume;
+   entry_information.entry_volume = starr_trade_information[i-1].order_volume * multiplier;
 //Stop Level Validations
    double ask_bid_price = (buy == true) ? MarketInfo(entry_information.entry_symbol, MODE_ASK):MarketInfo(entry_information.entry_symbol, MODE_BID);
    double stop_level = MarketInfo(entry_information.entry_symbol, MODE_STOPLEVEL) * MarketInfo(entry_information.entry_symbol, MODE_POINT);
